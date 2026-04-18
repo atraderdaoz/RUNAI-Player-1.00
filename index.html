@@ -6,15 +6,15 @@
 
   <style>
     body {
-      background: radial-gradient(circle, #0a0a0a, #000);
+      background: radial-gradient(circle at top, #0f0f0f, #000);
       color: #0ff;
-      font-family: Arial;
+      font-family: Arial, sans-serif;
       padding: 20px;
     }
 
     h2 {
-      text-align:center;
-      text-shadow:0 0 10px #0ff;
+      text-align: center;
+      text-shadow: 0 0 10px #0ff, 0 0 20px #0ff;
     }
 
     canvas {
@@ -27,46 +27,80 @@
     }
 
     .controls {
-      text-align:center;
-      margin-bottom:15px;
+      text-align: center;
+      margin: 20px 0;
     }
 
     button {
-      padding:10px;
-      margin:5px;
-      background:#111;
-      color:#0ff;
-      border:none;
-      box-shadow:0 0 10px #0ff;
-      cursor:pointer;
+      padding: 10px;
+      margin: 5px;
+      border: none;
+      border-radius: 5px;
+      background: #111;
+      color: #0ff;
+      box-shadow: 0 0 10px #0ff;
+      cursor: pointer;
+    }
+
+    button.active {
+      background: #0ff;
+      color: #000;
     }
 
     input[type=range] {
-      width:100%;
+      width: 100%;
     }
 
-    #time {
-      margin-top:5px;
-      font-size:14px;
-    }
-
-    .subtitle {
-      text-align:center;
-      margin:10px 0;
-      color:#fff;
-      text-shadow:0 0 5px #0ff;
-    }
+    .station { margin-bottom: 30px; }
 
     .track {
-      padding:10px;
-      margin:8px 0;
-      background:#111;
-      border-radius:8px;
-      cursor:pointer;
+      padding: 12px;
+      margin: 10px 0;
+      background: #111;
+      border-radius: 10px;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(0,255,255,0.2);
     }
 
-    .track:hover {
-      box-shadow:0 0 10px #0ff;
+    .track:hover { box-shadow: 0 0 15px #0ff; }
+
+    .progress {
+      height: 5px;
+      background: #222;
+      border-radius: 5px;
+      overflow: hidden;
+      margin-top: 5px;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #0ff, #00f);
+      box-shadow: 0 0 10px #0ff;
+    }
+
+    /* 🔊 Equalizer */
+    .equalizer {
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      height: 40px;
+      margin: 20px 0;
+      gap: 4px;
+    }
+
+    .bar {
+      width: 5px;
+      height: 10px;
+      background: #0ff;
+      box-shadow: 0 0 8px #0ff;
+      animation: bounce 1s infinite ease-in-out;
+      animation-play-state: paused;
+    }
+
+    @keyframes bounce {
+      0%,100% { height: 10px; }
+      50% { height: 40px; }
     }
   </style>
 </head>
@@ -75,136 +109,189 @@
 
 <h2>🏃🏿‍♂️Run.ai 📻Radio</h2>
 
+<!-- 🌊 Waveform -->
 <canvas id="wave"></canvas>
 
-<div class="controls">
-  <button onclick="play()">▶ Play</button>
-  <button onclick="pause()">⏸ Pause</button>
-  <button onclick="nextTrack()">⏭ Next</button>
-
-  <input type="range" id="seek" value="0">
-  <div id="time">0:00 / 0:00</div>
+<!-- 🔊 Equalizer -->
+<div class="equalizer">
+  <div class="bar"></div><div class="bar"></div>
+  <div class="bar"></div><div class="bar"></div>
+  <div class="bar"></div>
 </div>
 
-<div class="subtitle" id="subtitle">🎤 Subtitles ready</div>
+<!-- 🎧 Audio Controls -->
+<div class="controls">
+  <button onclick="player.play()">▶</button>
+  <button onclick="player.pause()">⏸</button>
+  <button onclick="nextTrack()">⏭</button>
+
+  <br>
+  <input type="range" id="seek" value="0">
+  <div id="time">0:00 / 0:00</div>
+
+  <button id="shuffleBtn" onclick="toggleShuffle()">🔀</button>
+  <button id="loopBtn" onclick="toggleLoop()">🔁</button>
+</div>
 
 <audio id="player"></audio>
 
-<div id="tracks"></div>
+<div id="stations"></div>
 
 <script>
 const player = document.getElementById("player");
 const seek = document.getElementById("seek");
 const timeDisplay = document.getElementById("time");
-const subtitle = document.getElementById("subtitle");
+const eqBars = document.querySelectorAll(".bar");
 
-// ✅ IMPORTANT: correct relative paths
-const tracks = [
-  {title:"Track 1", src:"music/new1.mp3", subs:[
-    {t:2, text:"Intro starts"},
-    {t:8, text:"Beat drops"},
-    {t:15, text:"Energy rising"}
-  ]},
-  {title:"Track 2", src:"music/trend1.mp3", subs:[
-    {t:3, text:"New vibe"},
-    {t:10, text:"Bass hits"},
-    {t:20, text:"Drop incoming"}
-  ]}
-];
+// 🎵 Stations
+const stations = {
+  "New": Array.from({length:10}, (_,i)=>({title:`New ${i+1}`, src:`music/new${i+1}.mp3`})),
+  "Trending": Array.from({length:10}, (_,i)=>({title:`Trending ${i+1}`, src:`music/trend${i+1}.mp3`})),
+  "Lit": Array.from({length:10}, (_,i)=>({title:`Lit ${i+1}`, src:`music/lit${i+1}.mp3`}))
+};
 
+let currentList = [];
 let currentIndex = 0;
+let isShuffle = false;
+let isLoop = false;
 
-// ▶️ Controls
-function play(){ player.play(); }
-function pause(){ player.pause(); }
+// 🎨 Render
+function renderStations() {
+  const container = document.getElementById("stations");
+  container.innerHTML = "";
 
-function loadTrack(i){
+  Object.keys(stations).forEach(station => {
+    const div = document.createElement("div");
+    div.className = "station";
+
+    const title = document.createElement("h3");
+    title.innerText = "📻 " + station;
+    div.appendChild(title);
+
+    stations[station].forEach((track,i)=>{
+      const t = document.createElement("div");
+      t.className = "track";
+      t.innerHTML = `${track.title}
+        <div class="progress">
+          <div class="progress-bar" id="p-${station}-${i}"></div>
+        </div>`;
+      t.onclick = ()=> playTrack(station,i);
+      div.appendChild(t);
+    });
+
+    container.appendChild(div);
+  });
+}
+
+// ▶️ Play
+function playTrack(station,i){
+  currentList = stations[station];
   currentIndex = i;
-  player.src = tracks[i].src;
+  player.src = currentList[i].src;
   player.play();
 }
 
-function nextTrack(){
-  currentIndex = (currentIndex + 1) % tracks.length;
-  loadTrack(currentIndex);
+// 🔊 Equalizer
+player.onplay = ()=> eqBars.forEach(b=>b.style.animationPlayState="running");
+player.onpause = ()=> eqBars.forEach(b=>b.style.animationPlayState="paused");
+
+// 🔀 Shuffle
+function toggleShuffle(){
+  isShuffle=!isShuffle;
+  shuffleBtn.classList.toggle("active");
 }
 
-// 🎚 Seek + Time + Subtitles
-player.addEventListener("timeupdate", () => {
-  if (!player.duration) return;
+// 🔁 Loop
+function toggleLoop(){
+  isLoop=!isLoop;
+  loopBtn.classList.toggle("active");
+}
 
-  seek.value = (player.currentTime / player.duration) * 100;
-
-  const format = t => Math.floor(t/60)+":"+("0"+Math.floor(t%60)).slice(-2);
-  timeDisplay.innerText = format(player.currentTime) + " / " + format(player.duration);
-
-  // 📝 stable subtitles
-  const subs = tracks[currentIndex].subs;
-  let active = subs.filter(s => player.currentTime >= s.t).pop();
-  subtitle.innerText = active ? active.text : "";
-});
-
-seek.addEventListener("input", () => {
-  if (player.duration) {
-    player.currentTime = (seek.value / 100) * player.duration;
+// ⏭ Next
+function nextTrack(){
+  if(isShuffle){
+    currentIndex=Math.floor(Math.random()*currentList.length);
+  } else {
+    currentIndex=(currentIndex+1)%currentList.length;
   }
-});
+  player.src=currentList[currentIndex].src;
+  player.play();
+}
 
-// 🌊 Waveform (FIXED + centered)
+player.onended = ()=> isLoop ? player.play() : nextTrack();
+
+// 🎚 Seek + Time
+player.ontimeupdate = ()=>{
+  if(!player.duration) return;
+
+  seek.value = (player.currentTime/player.duration)*100;
+
+  const f=t=>Math.floor(t/60)+":"+("0"+Math.floor(t%60)).slice(-2);
+  timeDisplay.innerText = f(player.currentTime)+" / "+f(player.duration);
+
+  document.querySelectorAll(".progress-bar").forEach(b=>b.style.width="0%");
+  const name = Object.keys(stations).find(n=>stations[n]===currentList);
+  if(name){
+    const bar=document.getElementById(`p-${name}-${currentIndex}`);
+    if(bar) bar.style.width=seek.value+"%";
+  }
+};
+
+seek.oninput = ()=>{
+  if(player.duration){
+    player.currentTime = (seek.value/100)*player.duration;
+  }
+};
+
+// 🌊 REAL Waveform (line curve)
 const canvas = document.getElementById("wave");
 const ctx = canvas.getContext("2d");
 
-let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let audioCtx = new (window.AudioContext||window.webkitAudioContext)();
 let analyser = audioCtx.createAnalyser();
 let source;
 
-// 🔊 FIX: resume audio context on user interaction
-document.body.addEventListener("click", () => {
-  if (audioCtx.state === "suspended") {
-    audioCtx.resume();
-  }
-});
+document.body.onclick = ()=>{
+  if(audioCtx.state==="suspended") audioCtx.resume();
+};
 
-player.addEventListener("play", () => {
-  if (!source) {
+player.onplay = ()=>{
+  if(!source){
     source = audioCtx.createMediaElementSource(player);
     source.connect(analyser);
     analyser.connect(audioCtx.destination);
   }
   draw();
-});
+};
 
 function draw(){
   requestAnimationFrame(draw);
 
-  const buffer = new Uint8Array(analyser.frequencyBinCount);
-  analyser.getByteFrequencyData(buffer);
+  const data = new Uint8Array(analyser.fftSize);
+  analyser.getByteTimeDomainData(data);
 
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  let barWidth = canvas.width / buffer.length;
+  ctx.beginPath();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "#0ff";
 
-  buffer.forEach((v,i)=>{
-    let h = v / 3;
+  let slice = canvas.width / data.length;
 
-    ctx.fillStyle = "#0ff";
-    ctx.fillRect(i*barWidth, canvas.height/2 - h/2, barWidth, h);
+  data.forEach((v,i)=>{
+    let y = (v/255)*canvas.height;
+    if(i===0){
+      ctx.moveTo(0,y);
+    } else {
+      ctx.lineTo(i*slice,y);
+    }
   });
+
+  ctx.stroke();
 }
 
-// 🎵 Render track list
-const container = document.getElementById("tracks");
-tracks.forEach((t,i)=>{
-  const div = document.createElement("div");
-  div.className = "track";
-  div.innerText = t.title;
-  div.onclick = () => loadTrack(i);
-  container.appendChild(div);
-});
-
 // Init
-loadTrack(0);
-
+renderStations();
 </script>
 
 </body>
