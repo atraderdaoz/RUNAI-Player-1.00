@@ -6,97 +6,57 @@
 
   <style>
     body {
-      background: radial-gradient(circle at top, #0f0f0f, #000);
+      background: radial-gradient(circle, #0a0a0a, #000);
       color: #0ff;
-      font-family: Arial, sans-serif;
+      font-family: Arial;
       padding: 20px;
     }
 
     h2 {
-      text-align: center;
-      text-shadow: 0 0 10px #0ff, 0 0 20px #0ff;
+      text-align:center;
+      text-shadow:0 0 10px #0ff;
+    }
+
+    canvas {
+      width:100%;
+      height:100px;
+      background:#000;
+      border-radius:10px;
+      box-shadow:0 0 10px #0ff;
+      margin:15px 0;
     }
 
     .controls {
-      text-align: center;
-      margin: 20px 0;
+      text-align:center;
     }
 
     button {
-      padding: 10px;
-      margin: 5px;
-      border: none;
-      border-radius: 5px;
-      background: #111;
-      color: #0ff;
-      box-shadow: 0 0 10px #0ff;
-      cursor: pointer;
+      padding:10px;
+      margin:5px;
+      background:#111;
+      color:#0ff;
+      border:none;
+      box-shadow:0 0 10px #0ff;
     }
 
-    button.active {
-      background: #0ff;
-      color: #000;
+    .seek {
+      width:100%;
     }
 
-    .station {
-      margin-bottom: 30px;
+    .subtitle {
+      text-align:center;
+      margin-top:10px;
+      font-size:14px;
+      color:#fff;
+      text-shadow:0 0 5px #0ff;
     }
 
     .track {
-      padding: 12px;
-      margin: 10px 0;
-      background: #111;
-      border-radius: 10px;
-      cursor: pointer;
-      box-shadow: 0 0 10px rgba(0,255,255,0.2);
-    }
-
-    .track:hover {
-      box-shadow: 0 0 15px #0ff;
-    }
-
-    .progress {
-      height: 5px;
-      background: #222;
-      border-radius: 5px;
-      overflow: hidden;
-      margin-top: 5px;
-    }
-
-    .progress-bar {
-      height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, #0ff, #00f);
-      box-shadow: 0 0 10px #0ff;
-    }
-
-    /* 🔊 Equalizer */
-    .equalizer {
-      display: flex;
-      justify-content: center;
-      align-items: flex-end;
-      height: 40px;
-      margin: 20px 0;
-      gap: 4px;
-    }
-
-    .bar {
-      width: 5px;
-      height: 10px;
-      background: #0ff;
-      box-shadow: 0 0 8px #0ff;
-      animation: bounce 1s infinite ease-in-out;
-      animation-play-state: paused;
-    }
-
-    .bar:nth-child(2) { animation-delay: 0.2s; }
-    .bar:nth-child(3) { animation-delay: 0.4s; }
-    .bar:nth-child(4) { animation-delay: 0.6s; }
-    .bar:nth-child(5) { animation-delay: 0.8s; }
-
-    @keyframes bounce {
-      0%,100% { height: 10px; }
-      50% { height: 40px; }
+      padding:10px;
+      margin:8px 0;
+      background:#111;
+      border-radius:8px;
+      cursor:pointer;
     }
   </style>
 </head>
@@ -105,137 +65,128 @@
 
 <h2>🏃🏿‍♂️Run.ai 📻Radio</h2>
 
-<!-- 🔊 Equalizer -->
-<div class="equalizer" id="eq">
-  <div class="bar"></div>
-  <div class="bar"></div>
-  <div class="bar"></div>
-  <div class="bar"></div>
-  <div class="bar"></div>
-</div>
+<canvas id="wave"></canvas>
 
 <div class="controls">
-  <button id="shuffleBtn" onclick="toggleShuffle()">🔀 Shuffle</button>
-  <button id="loopBtn" onclick="toggleLoop()">🔁 Loop</button>
+  <button onclick="player.play()">▶</button>
+  <button onclick="player.pause()">⏸</button>
+  <button onclick="nextTrack()">⏭</button>
+  <br>
+  <input type="range" id="seek" class="seek" value="0">
+  <div id="time">0:00 / 0:00</div>
 </div>
+
+<div class="subtitle" id="subtitle">🎤 Subtitles appear here</div>
 
 <audio id="player"></audio>
 
-<div id="stations"></div>
+<div id="tracks"></div>
 
 <script>
 const player = document.getElementById("player");
-const eqBars = document.querySelectorAll(".bar");
+const seek = document.getElementById("seek");
+const timeDisplay = document.getElementById("time");
+const subtitle = document.getElementById("subtitle");
 
-// 🎵 Stations
-const stations = {
-  "New": Array.from({length:10}, (_,i)=>({title:`New Track ${i+1}`, src:`new${i+1}.mp3`})),
-  "Trending": Array.from({length:10}, (_,i)=>({title:`Trending ${i+1}`, src:`trend${i+1}.mp3`})),
-  "Lit": Array.from({length:10}, (_,i)=>({title:`Lit ${i+1}`, src:`lit${i+1}.mp3`}))
-};
+// 🎵 Tracks with subtitles
+const tracks = [
+  {title:"Track 1", src:"song1.mp3", subs:[
+    {t:2, text:"Intro vibe starts"},
+    {t:10, text:"Feel the rhythm"},
+    {t:20, text:"Energy rising"}
+  ]},
+  {title:"Track 2", src:"song2.mp3", subs:[
+    {t:3, text:"New wave flow"},
+    {t:12, text:"Bass hits"},
+    {t:25, text:"Drop incoming"}
+  ]}
+];
 
-let currentList = [];
 let currentIndex = 0;
-let isShuffle = false;
-let isLoop = false;
 
-// 🎨 Render
-function renderStations() {
-  const container = document.getElementById("stations");
-  container.innerHTML = "";
-
-  Object.keys(stations).forEach(stationName => {
-    const stationDiv = document.createElement("div");
-    stationDiv.className = "station";
-
-    const title = document.createElement("h3");
-    title.innerText = "📻 " + stationName;
-    stationDiv.appendChild(title);
-
-    stations[stationName].forEach((track, index) => {
-      const trackDiv = document.createElement("div");
-      trackDiv.className = "track";
-      trackDiv.innerHTML = `
-        ${track.title}
-        <div class="progress">
-          <div class="progress-bar" id="progress-${stationName}-${index}"></div>
-        </div>
-      `;
-
-      trackDiv.onclick = () => playTrack(stationName, index);
-      stationDiv.appendChild(trackDiv);
-    });
-
-    container.appendChild(stationDiv);
-  });
-}
-
-// ▶️ Play
-function playTrack(station, index) {
-  currentList = stations[station];
-  currentIndex = index;
-  player.src = currentList[index].src;
+// ▶️ Load track
+function loadTrack(i){
+  currentIndex = i;
+  player.src = tracks[i].src;
   player.play();
-}
-
-// 🔊 Equalizer control
-player.addEventListener("play", () => {
-  eqBars.forEach(bar => bar.style.animationPlayState = "running");
-});
-
-player.addEventListener("pause", () => {
-  eqBars.forEach(bar => bar.style.animationPlayState = "paused");
-});
-
-// 🔀 Shuffle
-function toggleShuffle() {
-  isShuffle = !isShuffle;
-  document.getElementById("shuffleBtn").classList.toggle("active");
-}
-
-// 🔁 Loop
-function toggleLoop() {
-  isLoop = !isLoop;
-  document.getElementById("loopBtn").classList.toggle("active");
 }
 
 // ⏭ Next
-function nextTrack() {
-  if (isShuffle) {
-    currentIndex = Math.floor(Math.random() * currentList.length);
-  } else {
-    currentIndex = (currentIndex + 1) % currentList.length;
-  }
-  player.src = currentList[currentIndex].src;
-  player.play();
+function nextTrack(){
+  currentIndex = (currentIndex + 1) % tracks.length;
+  loadTrack(currentIndex);
 }
 
-player.addEventListener("ended", () => {
-  if (isLoop) {
-    player.play();
-  } else {
-    nextTrack();
-  }
-});
-
-// 📊 Progress
+// 🎚 Seek
 player.addEventListener("timeupdate", () => {
   if (!player.duration) return;
 
-  const percent = (player.currentTime / player.duration) * 100;
+  seek.value = (player.currentTime / player.duration) * 100;
 
-  document.querySelectorAll(".progress-bar").forEach(bar => bar.style.width = "0%");
+  // ⏱ Time display
+  const format = t => Math.floor(t/60)+":"+("0"+Math.floor(t%60)).slice(-2);
+  timeDisplay.innerText = format(player.currentTime) + " / " + format(player.duration);
 
-  const stationName = Object.keys(stations).find(name => stations[name] === currentList);
-  if (stationName) {
-    const bar = document.getElementById(`progress-${stationName}-${currentIndex}`);
-    if (bar) bar.style.width = percent + "%";
+  // 📝 Subtitles
+  const subs = tracks[currentIndex].subs;
+  let currentText = "";
+  subs.forEach(s => {
+    if(player.currentTime >= s.t) currentText = s.text;
+  });
+  subtitle.innerText = currentText;
+});
+
+seek.addEventListener("input", () => {
+  player.currentTime = (seek.value / 100) * player.duration;
+});
+
+// 🌊 Waveform Visualization
+const canvas = document.getElementById("wave");
+const ctx = canvas.getContext("2d");
+
+let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let analyser = audioCtx.createAnalyser();
+let source;
+
+player.addEventListener("play", () => {
+  if (!source) {
+    source = audioCtx.createMediaElementSource(player);
+    source.connect(analyser);
+    analyser.connect(audioCtx.destination);
   }
+  draw();
+});
+
+function draw(){
+  requestAnimationFrame(draw);
+
+  const buffer = new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteFrequencyData(buffer);
+
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  let barWidth = canvas.width / buffer.length;
+
+  buffer.forEach((v,i)=>{
+    let h = v / 2;
+    ctx.fillStyle = "#0ff";
+    ctx.fillRect(i*barWidth, canvas.height-h, barWidth, h);
+  });
+}
+
+// 🎵 Render list
+const container = document.getElementById("tracks");
+tracks.forEach((t,i)=>{
+  const div = document.createElement("div");
+  div.className = "track";
+  div.innerText = t.title;
+  div.onclick = () => loadTrack(i);
+  container.appendChild(div);
 });
 
 // Init
-renderStations();
+loadTrack(0);
 </script>
 
 </body>
-  </html>
+</html>
