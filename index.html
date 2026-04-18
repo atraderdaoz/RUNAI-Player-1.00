@@ -1,23 +1,52 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>RUN.AI Player</title>
+  <title>RUN.AI Streaming Player</title>
+  <style>
+    body { font-family: Arial; background:#111; color:#fff; text-align:center; }
+    button { margin:5px; padding:10px; border:none; border-radius:5px; }
+    .active { background:lime; color:black; }
+  </style>
 </head>
+
 <body>
 
-<h2>🎧 RUN.AI Streaming Player</h2>
+<h2>🎧 RUN.AI Multi-Track Player</h2>
 
-<audio id="player" controls>
-  <source src="DFS1000.mp3" type="audio/mpeg">
-</audio>
+<audio id="player"></audio>
 
-<br><br>
+<div>
+  <button onclick="prevSong()">⏮ Prev</button>
+  <button onclick="playSong()">▶ Play</button>
+  <button onclick="pauseSong()">⏸ Pause</button>
+  <button onclick="nextSong()">⏭ Next</button>
+</div>
 
-<button onclick="playSong()">Play</button>
-<button onclick="pauseSong()">Pause</button>
+<div>
+  <button id="shuffleBtn" onclick="toggleShuffle()">🔀 Shuffle</button>
+  <button id="loopBtn" onclick="toggleLoop()">🔁 Loop</button>
+</div>
+
+<h3 id="nowPlaying">Now Playing: </h3>
 
 <script>
+const playlist = [
+  { title: "Song 1", src: "song1.mp3" },
+  { title: "Song 2", src: "song2.mp3" },
+  { title: "Song 3", src: "song3.mp3" }
+];
+
+let currentIndex = 0;
+let isShuffle = false;
+let isLoop = false;
+
 const player = document.getElementById("player");
+const nowPlaying = document.getElementById("nowPlaying");
+
+function loadSong(index) {
+  player.src = playlist[index].src;
+  nowPlaying.innerText = "Now Playing: " + playlist[index].title;
+}
 
 function playSong() {
   player.play();
@@ -26,6 +55,45 @@ function playSong() {
 function pauseSong() {
   player.pause();
 }
+
+function nextSong() {
+  if (isShuffle) {
+    currentIndex = Math.floor(Math.random() * playlist.length);
+  } else {
+    currentIndex = (currentIndex + 1) % playlist.length;
+  }
+  loadSong(currentIndex);
+  playSong();
+}
+
+function prevSong() {
+  currentIndex = (currentIndex - 1 + playlist.length) % playlist.length;
+  loadSong(currentIndex);
+  playSong();
+}
+
+function toggleShuffle() {
+  isShuffle = !isShuffle;
+  document.getElementById("shuffleBtn").classList.toggle("active");
+}
+
+function toggleLoop() {
+  isLoop = !isLoop;
+  document.getElementById("loopBtn").classList.toggle("active");
+}
+
+// Auto-play next / loop logic
+player.addEventListener("ended", () => {
+  if (isLoop) {
+    playSong(); // repeat same track
+  } else {
+    nextSong();
+  }
+});
+
+// Load first song
+loadSong(currentIndex);
+
 </script>
 
 </body>
