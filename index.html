@@ -19,7 +19,7 @@
 
     canvas {
       width:100%;
-      height:100px;
+      height:120px;
       background:#000;
       border-radius:10px;
       box-shadow:0 0 10px #0ff;
@@ -28,6 +28,7 @@
 
     .controls {
       text-align:center;
+      margin-bottom:15px;
     }
 
     button {
@@ -37,16 +38,21 @@
       color:#0ff;
       border:none;
       box-shadow:0 0 10px #0ff;
+      cursor:pointer;
     }
 
-    .seek {
+    input[type=range] {
       width:100%;
+    }
+
+    #time {
+      margin-top:5px;
+      font-size:14px;
     }
 
     .subtitle {
       text-align:center;
-      margin-top:10px;
-      font-size:14px;
+      margin:10px 0;
       color:#fff;
       text-shadow:0 0 5px #0ff;
     }
@@ -58,6 +64,10 @@
       border-radius:8px;
       cursor:pointer;
     }
+
+    .track:hover {
+      box-shadow:0 0 10px #0ff;
+    }
   </style>
 </head>
 
@@ -68,15 +78,15 @@
 <canvas id="wave"></canvas>
 
 <div class="controls">
-  <button onclick="player.play()">▶</button>
-  <button onclick="player.pause()">⏸</button>
-  <button onclick="nextTrack()">⏭</button>
-  <br>
-  <input type="range" id="seek" class="seek" value="0">
+  <button onclick="play()">▶ Play</button>
+  <button onclick="pause()">⏸ Pause</button>
+  <button onclick="nextTrack()">⏭ Next</button>
+
+  <input type="range" id="seek" value="0">
   <div id="time">0:00 / 0:00</div>
 </div>
 
-<div class="subtitle" id="subtitle">🎤 Subtitles appear here</div>
+<div class="subtitle" id="subtitle">🎤 Subtitles ready</div>
 
 <audio id="player"></audio>
 
@@ -88,65 +98,72 @@ const seek = document.getElementById("seek");
 const timeDisplay = document.getElementById("time");
 const subtitle = document.getElementById("subtitle");
 
-// 🎵 Tracks with subtitles
+// ✅ IMPORTANT: correct relative paths
 const tracks = [
-  {title:"Track 1", src:"song1.mp3", subs:[
-    {t:2, text:"Intro vibe starts"},
-    {t:10, text:"Feel the rhythm"},
-    {t:20, text:"Energy rising"}
+  {title:"Track 1", src:"music/song1.mp3", subs:[
+    {t:2, text:"Intro starts"},
+    {t:8, text:"Beat drops"},
+    {t:15, text:"Energy rising"}
   ]},
-  {title:"Track 2", src:"song2.mp3", subs:[
-    {t:3, text:"New wave flow"},
-    {t:12, text:"Bass hits"},
-    {t:25, text:"Drop incoming"}
+  {title:"Track 2", src:"music/song2.mp3", subs:[
+    {t:3, text:"New vibe"},
+    {t:10, text:"Bass hits"},
+    {t:20, text:"Drop incoming"}
   ]}
 ];
 
 let currentIndex = 0;
 
-// ▶️ Load track
+// ▶️ Controls
+function play(){ player.play(); }
+function pause(){ player.pause(); }
+
 function loadTrack(i){
   currentIndex = i;
   player.src = tracks[i].src;
   player.play();
 }
 
-// ⏭ Next
 function nextTrack(){
   currentIndex = (currentIndex + 1) % tracks.length;
   loadTrack(currentIndex);
 }
 
-// 🎚 Seek
+// 🎚 Seek + Time + Subtitles
 player.addEventListener("timeupdate", () => {
   if (!player.duration) return;
 
   seek.value = (player.currentTime / player.duration) * 100;
 
-  // ⏱ Time display
   const format = t => Math.floor(t/60)+":"+("0"+Math.floor(t%60)).slice(-2);
   timeDisplay.innerText = format(player.currentTime) + " / " + format(player.duration);
 
-  // 📝 Subtitles
+  // 📝 stable subtitles
   const subs = tracks[currentIndex].subs;
-  let currentText = "";
-  subs.forEach(s => {
-    if(player.currentTime >= s.t) currentText = s.text;
-  });
-  subtitle.innerText = currentText;
+  let active = subs.filter(s => player.currentTime >= s.t).pop();
+  subtitle.innerText = active ? active.text : "";
 });
 
 seek.addEventListener("input", () => {
-  player.currentTime = (seek.value / 100) * player.duration;
+  if (player.duration) {
+    player.currentTime = (seek.value / 100) * player.duration;
+  }
 });
 
-// 🌊 Waveform Visualization
+// 🌊 Waveform (FIXED + centered)
 const canvas = document.getElementById("wave");
 const ctx = canvas.getContext("2d");
 
 let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 let analyser = audioCtx.createAnalyser();
 let source;
+
+// 🔊 FIX: resume audio context on user interaction
+document.body.addEventListener("click", () => {
+  if (audioCtx.state === "suspended") {
+    audioCtx.resume();
+  }
+});
 
 player.addEventListener("play", () => {
   if (!source) {
@@ -168,13 +185,14 @@ function draw(){
   let barWidth = canvas.width / buffer.length;
 
   buffer.forEach((v,i)=>{
-    let h = v / 2;
+    let h = v / 3;
+
     ctx.fillStyle = "#0ff";
-    ctx.fillRect(i*barWidth, canvas.height-h, barWidth, h);
+    ctx.fillRect(i*barWidth, canvas.height/2 - h/2, barWidth, h);
   });
 }
 
-// 🎵 Render list
+// 🎵 Render track list
 const container = document.getElementById("tracks");
 tracks.forEach((t,i)=>{
   const div = document.createElement("div");
@@ -186,6 +204,7 @@ tracks.forEach((t,i)=>{
 
 // Init
 loadTrack(0);
+
 </script>
 
 </body>
