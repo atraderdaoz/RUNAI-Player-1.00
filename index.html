@@ -1,100 +1,241 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>RUN.AI Streaming Player</title>
+  <title>🏃🏿‍♂️Run.ai 📻Radio</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <style>
-    body { font-family: Arial; background:#111; color:#fff; text-align:center; }
-    button { margin:5px; padding:10px; border:none; border-radius:5px; }
-    .active { background:lime; color:black; }
+    body {
+      background: radial-gradient(circle at top, #0f0f0f, #000);
+      color: #0ff;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+
+    h2 {
+      text-align: center;
+      text-shadow: 0 0 10px #0ff, 0 0 20px #0ff;
+    }
+
+    .controls {
+      text-align: center;
+      margin: 20px 0;
+    }
+
+    button {
+      padding: 10px;
+      margin: 5px;
+      border: none;
+      border-radius: 5px;
+      background: #111;
+      color: #0ff;
+      box-shadow: 0 0 10px #0ff;
+      cursor: pointer;
+    }
+
+    button.active {
+      background: #0ff;
+      color: #000;
+    }
+
+    .station {
+      margin-bottom: 30px;
+    }
+
+    .track {
+      padding: 12px;
+      margin: 10px 0;
+      background: #111;
+      border-radius: 10px;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(0,255,255,0.2);
+    }
+
+    .track:hover {
+      box-shadow: 0 0 15px #0ff;
+    }
+
+    .progress {
+      height: 5px;
+      background: #222;
+      border-radius: 5px;
+      overflow: hidden;
+      margin-top: 5px;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #0ff, #00f);
+      box-shadow: 0 0 10px #0ff;
+    }
+
+    /* 🔊 Equalizer */
+    .equalizer {
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      height: 40px;
+      margin: 20px 0;
+      gap: 4px;
+    }
+
+    .bar {
+      width: 5px;
+      height: 10px;
+      background: #0ff;
+      box-shadow: 0 0 8px #0ff;
+      animation: bounce 1s infinite ease-in-out;
+      animation-play-state: paused;
+    }
+
+    .bar:nth-child(2) { animation-delay: 0.2s; }
+    .bar:nth-child(3) { animation-delay: 0.4s; }
+    .bar:nth-child(4) { animation-delay: 0.6s; }
+    .bar:nth-child(5) { animation-delay: 0.8s; }
+
+    @keyframes bounce {
+      0%,100% { height: 10px; }
+      50% { height: 40px; }
+    }
   </style>
 </head>
 
 <body>
 
-<h2>🎧 RUN.AI Multi-Track Player</h2>
+<h2>🏃🏿‍♂️Run.ai 📻Radio</h2>
 
-<audio id="player"></audio>
-
-<div>
-  <button onclick="prevSong()">⏮ Prev</button>
-  <button onclick="playSong()">▶ Play</button>
-  <button onclick="pauseSong()">⏸ Pause</button>
-  <button onclick="nextSong()">⏭ Next</button>
+<!-- 🔊 Equalizer -->
+<div class="equalizer" id="eq">
+  <div class="bar"></div>
+  <div class="bar"></div>
+  <div class="bar"></div>
+  <div class="bar"></div>
+  <div class="bar"></div>
 </div>
 
-<div>
+<div class="controls">
   <button id="shuffleBtn" onclick="toggleShuffle()">🔀 Shuffle</button>
   <button id="loopBtn" onclick="toggleLoop()">🔁 Loop</button>
 </div>
 
-<h3 id="nowPlaying">Now Playing: </h3>
+<audio id="player"></audio>
+
+<div id="stations"></div>
 
 <script>
-const playlist = [
-  { title: "Elgange", src: "Elgange.mp3" },
-  { title: "Niniyon1", src: "Niniyon.mp3" },
-  { title: "DFS1002", src: "DFS1002.mp3" }
-];
+const player = document.getElementById("player");
+const eqBars = document.querySelectorAll(".bar");
 
+// 🎵 Stations
+const stations = {
+  "New": Array.from({length:10}, (_,i)=>({title:`New Track ${i+1}`, src:`new${i+1}.mp3`})),
+  "Trending": Array.from({length:10}, (_,i)=>({title:`Trending ${i+1}`, src:`trend${i+1}.mp3`})),
+  "Lit": Array.from({length:10}, (_,i)=>({title:`Lit ${i+1}`, src:`lit${i+1}.mp3`}))
+};
+
+let currentList = [];
 let currentIndex = 0;
 let isShuffle = false;
 let isLoop = false;
 
-const player = document.getElementById("player");
-const nowPlaying = document.getElementById("nowPlaying");
+// 🎨 Render
+function renderStations() {
+  const container = document.getElementById("stations");
+  container.innerHTML = "";
 
-function loadSong(index) {
-  player.src = playlist[index].src;
-  nowPlaying.innerText = "Now Playing: " + playlist[index].title;
+  Object.keys(stations).forEach(stationName => {
+    const stationDiv = document.createElement("div");
+    stationDiv.className = "station";
+
+    const title = document.createElement("h3");
+    title.innerText = "📻 " + stationName;
+    stationDiv.appendChild(title);
+
+    stations[stationName].forEach((track, index) => {
+      const trackDiv = document.createElement("div");
+      trackDiv.className = "track";
+      trackDiv.innerHTML = `
+        ${track.title}
+        <div class="progress">
+          <div class="progress-bar" id="progress-${stationName}-${index}"></div>
+        </div>
+      `;
+
+      trackDiv.onclick = () => playTrack(stationName, index);
+      stationDiv.appendChild(trackDiv);
+    });
+
+    container.appendChild(stationDiv);
+  });
 }
 
-function playSong() {
+// ▶️ Play
+function playTrack(station, index) {
+  currentList = stations[station];
+  currentIndex = index;
+  player.src = currentList[index].src;
   player.play();
 }
 
-function pauseSong() {
-  player.pause();
-}
+// 🔊 Equalizer control
+player.addEventListener("play", () => {
+  eqBars.forEach(bar => bar.style.animationPlayState = "running");
+});
 
-function nextSong() {
-  if (isShuffle) {
-    currentIndex = Math.floor(Math.random() * playlist.length);
-  } else {
-    currentIndex = (currentIndex + 1) % playlist.length;
-  }
-  loadSong(currentIndex);
-  playSong();
-}
+player.addEventListener("pause", () => {
+  eqBars.forEach(bar => bar.style.animationPlayState = "paused");
+});
 
-function prevSong() {
-  currentIndex = (currentIndex - 1 + playlist.length) % playlist.length;
-  loadSong(currentIndex);
-  playSong();
-}
-
+// 🔀 Shuffle
 function toggleShuffle() {
   isShuffle = !isShuffle;
   document.getElementById("shuffleBtn").classList.toggle("active");
 }
 
+// 🔁 Loop
 function toggleLoop() {
   isLoop = !isLoop;
   document.getElementById("loopBtn").classList.toggle("active");
 }
 
-// Auto-play next / loop logic
+// ⏭ Next
+function nextTrack() {
+  if (isShuffle) {
+    currentIndex = Math.floor(Math.random() * currentList.length);
+  } else {
+    currentIndex = (currentIndex + 1) % currentList.length;
+  }
+  player.src = currentList[currentIndex].src;
+  player.play();
+}
+
 player.addEventListener("ended", () => {
   if (isLoop) {
-    playSong(); // repeat same track
+    player.play();
   } else {
-    nextSong();
+    nextTrack();
   }
 });
 
-// Load first song
-loadSong(currentIndex);
+// 📊 Progress
+player.addEventListener("timeupdate", () => {
+  if (!player.duration) return;
 
+  const percent = (player.currentTime / player.duration) * 100;
+
+  document.querySelectorAll(".progress-bar").forEach(bar => bar.style.width = "0%");
+
+  const stationName = Object.keys(stations).find(name => stations[name] === currentList);
+  if (stationName) {
+    const bar = document.getElementById(`progress-${stationName}-${currentIndex}`);
+    if (bar) bar.style.width = percent + "%";
+  }
+});
+
+// Init
+renderStations();
 </script>
 
 </body>
-</html>
+  </html>
