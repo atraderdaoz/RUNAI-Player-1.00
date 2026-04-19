@@ -18,14 +18,12 @@
       text-align:center;
       margin:10px 0;
       color:#fff;
-      text-shadow:0 0 8px #0ff;
     }
 
     canvas {
       width:100%; height:120px;
       background:#000;
       border-radius:10px;
-      box-shadow:0 0 10px #0ff;
       margin:15px 0;
     }
 
@@ -51,17 +49,8 @@
       cursor:pointer;
     }
 
-    .progress {
-      height:5px;
-      background:#222;
-      margin-top:5px;
-    }
-
-    .progress-bar {
-      height:100%;
-      width:0%;
-      background:#0ff;
-    }
+    .progress { height:5px; background:#222; margin-top:5px; }
+    .progress-bar { height:100%; width:0%; background:#0ff; }
 
     .equalizer {
       display:flex;
@@ -78,8 +67,18 @@
       animation-play-state:paused;
     }
 
-    @keyframes bounce {
-      50% { height:40px; }
+    @keyframes bounce { 50% { height:40px; } }
+
+    /* 💰 Modal */
+    #paymentModal {
+      display:none;
+      position:fixed;
+      top:0; left:0;
+      width:100%; height:100%;
+      background:rgba(0,0,0,0.9);
+      justify-content:center;
+      align-items:center;
+      z-index:999;
     }
   </style>
 </head>
@@ -110,18 +109,10 @@
   <button id="loopBtn" onclick="toggleLoop()">🔁</button>
 </div>
 
-<audio id="player">
-  <div id="paymentModal" style="
-  display:none;
-  position:fixed;
-  top:0; left:0;
-  width:100%; height:100%;
-  background:rgba(0,0,0,0.9);
-  justify-content:center;
-  align-items:center;
-  z-index:999;
-">
+<audio id="player"></audio>
 
+<!-- 💰 PAYMENT MODAL -->
+<div id="paymentModal">
   <div style="
     background:#111;
     padding:20px;
@@ -130,122 +121,92 @@
     box-shadow:0 0 20px #0ff;
     max-width:300px;
   ">
-    
-    <h3 style="color:#0ff;">💰 Support Track</h3>
+    <h3>💰 Support Track</h3>
 
-    <img src="WA_1776604572672.jpeg" style="width:200px; margin:10px 0; border-radius:10px;" />
+    <img src="WA_1776604572672.jpeg" style="width:200px; border-radius:10px;" />
 
-    <div id="payDetails" style="font-size:12px; color:#aaa;"></div>
+    <div id="payDetails" style="font-size:12px; color:#aaa; margin-top:10px;"></div>
 
-    <br>
     <button onclick="closeModal()">❌ Close</button>
   </div>
-  </div>
-</audio>
+</div>
 
 <div id="stations"></div>
 
-<div style="text-align:center; margin:15px;">
-  <button onclick="donate()">💰 Donate XLM</button>
-</div>
-
 <script>
-const STELLAR_ADDRESS = "0x60790faFA18390A53770184E6F8e53E0BC3Cf7D7";
+const WALLET = "0x60790faFA18390A53770184E6F8e53E0BC3Cf7D7";
 
-// Generate Stellar payment link
-function getXLMUrl(amount, memo="RunAI"){
-  return `web+stellar:pay?destination=${STELLAR_ADDRESS}&amount=${amount}&memo=${encodeURIComponent(memo)}`;
-}
-  
 const player = document.getElementById("player");
 const seek = document.getElementById("seek");
 const timeDisplay = document.getElementById("time");
 const nowPlaying = document.getElementById("nowPlaying");
 const eqBars = document.querySelectorAll(".bar");
 
-
 const trackNames = {
   "new6.mp3": "Dynasty",
-  "new3.mp3": "Midnight Flow",
-  "trend2.mp3": "Street Code",
-  "lit5.mp3": "Energy Burst"
+  "new3.mp3": "Midnight Flow"
 };
 
-
-// 🎵 Stations with names
 const stations = {
   "New": Array.from({length:10}, (_,i)=>{
-    const file = `new${i+1}.mp3`;
-    return {
-      title: trackNames[file] || `New Track ${i+1}`,
-      src: `music/${file}`
-    };
+    const file=`new${i+1}.mp3`;
+    return { title: trackNames[file] || `New ${i+1}`, src:`music/${file}` };
   }),
-
   "Trending": Array.from({length:10}, (_,i)=>{
-    const file = `trend${i+1}.mp3`;
-    return {
-      title: trackNames[file] || `Trending ${i+1}`,
-      src: `music/${file}`
-    };
+    const file=`trend${i+1}.mp3`;
+    return { title:`Trending ${i+1}`, src:`music/${file}` };
   }),
-
   "Lit": Array.from({length:10}, (_,i)=>{
-    const file = `lit${i+1}.mp3`;
-    return {
-      title: trackNames[file] || `Lit ${i+1}`,
-      src: `music/${file}`
-    };
+    const file=`lit${i+1}.mp3`;
+    return { title:`Lit ${i+1}`, src:`music/${file}` };
   })
 };
-let currentList = [];
-let currentIndex = 0;
-let isShuffle=false, isLoop=false;
 
-// 🎨 Render
+let currentList=[], currentIndex=0, isShuffle=false, isLoop=false;
+
 function renderStations(){
-  const container = document.getElementById("stations");
+  const container=document.getElementById("stations");
   container.innerHTML="";
 
   Object.keys(stations).forEach(name=>{
     const div=document.createElement("div");
-    div.innerHTML="<h3>📻 "+name+"</h3>";
+    div.innerHTML=`<h3>📻 ${name}</h3>`;
 
     stations[name].forEach((t,i)=>{
       const el=document.createElement("div");
       el.className="track";
-      el.innerHTML = `
-  ${t.title}
-  <button onclick="event.stopPropagation(); openPayment('${t.src}','${t.title}')">
-  💸 Support
-</button>
-  <div class="progress">
-    <div class="progress-bar" id="p-${name}-${i}"></div>
-  </div>
-`;
-  el.onclick=()=>playTrack(name,i);
+
+      el.innerHTML=`
+        ${t.title}
+        <button onclick="event.stopPropagation(); openPayment('${t.title}')">💸 Support</button>
+        <div class="progress"><div class="progress-bar" id="p-${name}-${i}"></div></div>
+      `;
+
+      el.onclick=()=>playTrack(name,i);
       div.appendChild(el);
     });
 
     container.appendChild(div);
   });
 }
-function buyTrack(title){
-  alert(`Send BNB to:
 
-0x60790faFA18390A53770184E6F8e53E0BC3Cf7D7
+function openPayment(title){
+  document.getElementById("paymentModal").style.display="flex";
 
-Amount: 0.001 BNB
-
-Reference: ${title}`);
+  document.getElementById("payDetails").innerHTML=`
+    Send: 0.001 BNB<br><br>
+    Wallet:<br>${WALLET}<br><br>
+    Reference:<br>${title}
+  `;
 }
 
+function closeModal(){
+  document.getElementById("paymentModal").style.display="none";
+}
 
-// ▶️ Play
 function playTrack(station,i){
   currentList=stations[station];
   currentIndex=i;
-
   const track=currentList[i];
 
   player.src=track.src;
@@ -254,25 +215,20 @@ function playTrack(station,i){
   nowPlaying.innerText=`🎧 ${station} • ${track.title}`;
 }
 
-// ⏭ Next
 function nextTrack(){
-  if(isShuffle){
-    currentIndex=Math.floor(Math.random()*currentList.length);
-  } else {
-    currentIndex=(currentIndex+1)%currentList.length;
-  }
+  currentIndex = isShuffle
+    ? Math.floor(Math.random()*currentList.length)
+    : (currentIndex+1)%currentList.length;
 
-  const station = Object.keys(stations).find(n=>stations[n]===currentList);
+  const station=Object.keys(stations).find(n=>stations[n]===currentList);
   playTrack(station,currentIndex);
 }
 
-// 🔀 / 🔁
-function toggleShuffle(){ isShuffle=!isShuffle; shuffleBtn.classList.toggle("active"); }
-function toggleLoop(){ isLoop=!isLoop; loopBtn.classList.toggle("active"); }
+function toggleShuffle(){ isShuffle=!isShuffle; }
+function toggleLoop(){ isLoop=!isLoop; }
 
 player.onended=()=> isLoop ? player.play() : nextTrack();
 
-// 🎚 Seek + Time
 player.ontimeupdate=()=>{
   if(!player.duration) return;
 
@@ -280,82 +236,12 @@ player.ontimeupdate=()=>{
 
   const f=t=>Math.floor(t/60)+":"+("0"+Math.floor(t%60)).slice(-2);
   timeDisplay.innerText=f(player.currentTime)+" / "+f(player.duration);
-
-  document.querySelectorAll(".progress-bar").forEach(b=>b.style.width="0%");
-  const station=Object.keys(stations).find(n=>stations[n]===currentList);
-  if(station){
-    const bar=document.getElementById(`p-${station}-${currentIndex}`);
-    if(bar) bar.style.width=seek.value+"%";
-  }
 };
 
 seek.oninput=()=> player.currentTime=(seek.value/100)*player.duration;
 
-// 🔊 Equalizer
 player.onplay=()=> eqBars.forEach(b=>b.style.animationPlayState="running");
 player.onpause=()=> eqBars.forEach(b=>b.style.animationPlayState="paused");
-
-// 🌊 Waveform
-const canvas=document.getElementById("wave");
-const ctx=canvas.getContext("2d");
-
-let audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-let analyser=audioCtx.createAnalyser();
-let source;
-
-document.body.onclick=()=>{ if(audioCtx.state==="suspended") audioCtx.resume(); };
-
-player.onplay=()=>{
-  if(!source){
-    source=audioCtx.createMediaElementSource(player);
-    source.connect(analyser);
-    analyser.connect(audioCtx.destination);
-  }
-  draw();
-};
-
-function draw(){
-  requestAnimationFrame(draw);
-
-  const data=new Uint8Array(analyser.fftSize);
-  analyser.getByteTimeDomainData(data);
-
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  ctx.beginPath();
-  ctx.strokeStyle="#0ff";
-
-  let slice=canvas.width/data.length;
-
-  data.forEach((v,i)=>{
-    let y=(v/255)*canvas.height;
-    i===0 ? ctx.moveTo(0,y) : ctx.lineTo(i*slice,y);
-  });
-
-  ctx.stroke();
-}
-
-function donate(){
-  const url = getXLMUrl(1, "Donation RunAI Radio");
-  window.location.href = url;
-  }
-function openPayment(src, title){
-  const memo = `RUNAI|${src}`;
-
-  document.getElementById("paymentModal").style.display = "flex";
-
-  document.getElementById("payDetails").innerHTML = `
-    <b>Track:</b> ${title}<br><br>
-    <b>Send:</b> 2 XLM<br><br>
-    <b>Address:</b><br>${STELLAR_ADDRESS}<br><br>
-    <b>Memo:</b><br>${memo}
-  `;
-}
-
-function closeModal(){
-  document.getElementById("paymentModal").style.display = "none";
-  }
-  
 
 // Init
 renderStations();
