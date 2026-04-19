@@ -21,17 +21,21 @@
     }
 
     canvas {
-      width:100%; height:120px;
+      width:100%;
+      height:120px;
       background:#000;
       border-radius:10px;
       margin:15px 0;
+      box-shadow:0 0 10px #0ff;
     }
 
     .controls { text-align:center; }
 
     button {
-      padding:10px; margin:5px;
-      background:#111; color:#0ff;
+      padding:10px;
+      margin:5px;
+      background:#111;
+      color:#0ff;
       border:none;
       box-shadow:0 0 10px #0ff;
       cursor:pointer;
@@ -123,6 +127,7 @@
   ">
     <h3>💰 Support Track</h3>
 
+    <!-- QR IMAGE -->
     <img src="WA_1776604572672.jpeg" style="width:200px; border-radius:10px;" />
 
     <div id="payDetails" style="font-size:12px; color:#aaa; margin-top:10px;"></div>
@@ -134,36 +139,110 @@
 <div id="stations"></div>
 
 <script>
+// ================= WALLET =================
 const WALLET = "0x60790faFA18390A53770184E6F8e53E0BC3Cf7D7";
 
+// ================= ELEMENTS =================
 const player = document.getElementById("player");
 const seek = document.getElementById("seek");
 const timeDisplay = document.getElementById("time");
 const nowPlaying = document.getElementById("nowPlaying");
 const eqBars = document.querySelectorAll(".bar");
 
+// ================= WAVEFORM =================
+const canvas = document.getElementById("wave");
+const ctx = canvas.getContext("2d");
+
+// Fix canvas resolution
+function resizeCanvas(){
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+}
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
+
+let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let analyser = audioCtx.createAnalyser();
+analyser.fftSize = 2048;
+
+let source;
+let drawing = false;
+
+// Unlock audio
+document.addEventListener("click", ()=>{
+  if(audioCtx.state==="suspended") audioCtx.resume();
+});
+
+// Draw waveform
+function draw(){
+  requestAnimationFrame(draw);
+
+  const data = new Uint8Array(analyser.fftSize);
+  analyser.getByteTimeDomainData(data);
+
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  ctx.beginPath();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "#0ff";
+
+  let slice = canvas.width / data.length;
+  let x = 0;
+
+  for(let i=0;i<data.length;i++){
+    let v = data[i]/128;
+    let y = (v * canvas.height)/2;
+
+    if(i===0) ctx.moveTo(x,y);
+    else ctx.lineTo(x,y);
+
+    x += slice;
+  }
+
+  ctx.stroke();
+}
+
+player.addEventListener("play", ()=>{
+  if(!source){
+    source = audioCtx.createMediaElementSource(player);
+    source.connect(analyser);
+    analyser.connect(audioCtx.destination);
+  }
+
+  if(!drawing){
+    drawing = true;
+    draw();
+  }
+
+  eqBars.forEach(b=>b.style.animationPlayState="running");
+});
+
+player.addEventListener("pause", ()=>{
+  eqBars.forEach(b=>b.style.animationPlayState="paused");
+});
+
+// ================= TRACKS =================
 const trackNames = {
   "new6.mp3": "Dynasty",
   "new3.mp3": "Midnight Flow"
 };
 
 const stations = {
-  "New": Array.from({length:10}, (_,i)=>{
+  "New": Array.from({length:10},(_,i)=>{
     const file=`new${i+1}.mp3`;
-    return { title: trackNames[file] || `New ${i+1}`, src:`music/${file}` };
+    return {title:trackNames[file]||`New ${i+1}`, src:`music/${file}`};
   }),
-  "Trending": Array.from({length:10}, (_,i)=>{
-    const file=`trend${i+1}.mp3`;
-    return { title:`Trending ${i+1}`, src:`music/${file}` };
+  "Trending": Array.from({length:10},(_,i)=>{
+    return {title:`Trending ${i+1}`, src:`music/trend${i+1}.mp3`};
   }),
-  "Lit": Array.from({length:10}, (_,i)=>{
-    const file=`lit${i+1}.mp3`;
-    return { title:`Lit ${i+1}`, src:`music/${file}` };
+  "Lit": Array.from({length:10},(_,i)=>{
+    return {title:`Lit ${i+1}`, src:`music/lit${i+1}.mp3`};
   })
 };
 
 let currentList=[], currentIndex=0, isShuffle=false, isLoop=false;
 
+// ================= RENDER =================
 function renderStations(){
   const container=document.getElementById("stations");
   container.innerHTML="";
@@ -179,7 +258,9 @@ function renderStations(){
       el.innerHTML=`
         ${t.title}
         <button onclick="event.stopPropagation(); openPayment('${t.title}')">💸 Support</button>
-        <div class="progress"><div class="progress-bar" id="p-${name}-${i}"></div></div>
+        <div class="progress">
+          <div class="progress-bar" id="p-${name}-${i}"></div>
+        </div>
       `;
 
       el.onclick=()=>playTrack(name,i);
@@ -190,25 +271,12 @@ function renderStations(){
   });
 }
 
-function openPayment(title){
-  document.getElementById("paymentModal").style.display="flex";
-
-  document.getElementById("payDetails").innerHTML=`
-    Send: 0.001 BNB<br><br>
-    Wallet:<br>${WALLET}<br><br>
-    Reference:<br>${title}
-  `;
-}
-
-function closeModal(){
-  document.getElementById("paymentModal").style.display="none";
-}
-
+// ================= PLAYER =================
 function playTrack(station,i){
   currentList=stations[station];
   currentIndex=i;
-  const track=currentList[i];
 
+  const track=currentList[i];
   player.src=track.src;
   player.play();
 
@@ -224,11 +292,19 @@ function nextTrack(){
   playTrack(station,currentIndex);
 }
 
-function toggleShuffle(){ isShuffle=!isShuffle; }
-function toggleLoop(){ isLoop=!isLoop; }
+function toggleShuffle(){
+  isShuffle=!isShuffle;
+  document.getElementById("shuffleBtn").classList.toggle("active");
+}
+
+function toggleLoop(){
+  isLoop=!isLoop;
+  document.getElementById("loopBtn").classList.toggle("active");
+}
 
 player.onended=()=> isLoop ? player.play() : nextTrack();
 
+// ================= SEEK =================
 player.ontimeupdate=()=>{
   if(!player.duration) return;
 
@@ -236,16 +312,39 @@ player.ontimeupdate=()=>{
 
   const f=t=>Math.floor(t/60)+":"+("0"+Math.floor(t%60)).slice(-2);
   timeDisplay.innerText=f(player.currentTime)+" / "+f(player.duration);
+
+  document.querySelectorAll(".progress-bar").forEach(b=>b.style.width="0%");
+  const station=Object.keys(stations).find(n=>stations[n]===currentList);
+  if(station){
+    const bar=document.getElementById(`p-${station}-${currentIndex}`);
+    if(bar) bar.style.width=seek.value+"%";
+  }
 };
 
-seek.oninput=()=> player.currentTime=(seek.value/100)*player.duration;
+seek.oninput=()=>{
+  if(player.duration){
+    player.currentTime=(seek.value/100)*player.duration;
+  }
+};
 
-player.onplay=()=> eqBars.forEach(b=>b.style.animationPlayState="running");
-player.onpause=()=> eqBars.forEach(b=>b.style.animationPlayState="paused");
+// ================= PAYMENT =================
+function openPayment(title){
+  document.getElementById("paymentModal").style.display="flex";
 
-// Init
+  document.getElementById("payDetails").innerHTML=`
+    Send: 0.001 BNB<br><br>
+    Wallet:<br>${WALLET}<br><br>
+    Reference:<br>${title}
+  `;
+}
+
+function closeModal(){
+  document.getElementById("paymentModal").style.display="none";
+}
+
+// ================= INIT =================
 renderStations();
 </script>
 
 </body>
-</html>
+  </html>
