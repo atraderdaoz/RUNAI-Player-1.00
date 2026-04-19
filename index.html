@@ -110,7 +110,38 @@
   <button id="loopBtn" onclick="toggleLoop()">🔁</button>
 </div>
 
-<audio id="player"></audio>
+<audio id="player">
+  <div id="paymentModal" style="
+  display:none;
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background:rgba(0,0,0,0.9);
+  justify-content:center;
+  align-items:center;
+  z-index:999;
+">
+
+  <div style="
+    background:#111;
+    padding:20px;
+    border-radius:10px;
+    text-align:center;
+    box-shadow:0 0 20px #0ff;
+    max-width:300px;
+  ">
+    
+    <h3 style="color:#0ff;">💰 Support Track</h3>
+
+    <img src="WA_1776604572672.jpeg" style="width:200px; margin:10px 0; border-radius:10px;" />
+
+    <div id="payDetails" style="font-size:12px; color:#aaa;"></div>
+
+    <br>
+    <button onclick="closeModal()">❌ Close</button>
+  </div>
+  </div>
+</audio>
 
 <div id="stations"></div>
 
@@ -185,7 +216,9 @@ function renderStations(){
       el.className="track";
       el.innerHTML = `
   ${t.title}
-  <button onclick="event.stopPropagation(); buyTrack('${t.title}')">💸 Support</button>
+  <button onclick="event.stopPropagation(); openPayment('${t.src}','${t.title}')">
+  💸 Support
+</button>
   <div class="progress">
     <div class="progress-bar" id="p-${name}-${i}"></div>
   </div>
@@ -306,6 +339,23 @@ function donate(){
   const url = getXLMUrl(1, "Donation RunAI Radio");
   window.location.href = url;
   }
+function openPayment(src, title){
+  const memo = `RUNAI|${src}`;
+
+  document.getElementById("paymentModal").style.display = "flex";
+
+  document.getElementById("payDetails").innerHTML = `
+    <b>Track:</b> ${title}<br><br>
+    <b>Send:</b> 2 XLM<br><br>
+    <b>Address:</b><br>${STELLAR_ADDRESS}<br><br>
+    <b>Memo:</b><br>${memo}
+  `;
+}
+
+function closeModal(){
+  document.getElementById("paymentModal").style.display = "none";
+  }
+  
 
 // Init
 renderStations();
