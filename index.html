@@ -114,7 +114,18 @@
 
 <div id="stations"></div>
 
+<div style="text-align:center; margin:15px;">
+  <button onclick="donate()">💰 Donate XLM</button>
+</div>
+
 <script>
+const STELLAR_ADDRESS = "0x60790faFA18390A53770184E6F8e53E0BC3Cf7D7";
+
+// Generate Stellar payment link
+function getXLMUrl(amount, memo="RunAI"){
+  return `web+stellar:pay?destination=${STELLAR_ADDRESS}&amount=${amount}&memo=${encodeURIComponent(memo)}`;
+}
+  
 const player = document.getElementById("player");
 const seek = document.getElementById("seek");
 const timeDisplay = document.getElementById("time");
@@ -172,14 +183,25 @@ function renderStations(){
     stations[name].forEach((t,i)=>{
       const el=document.createElement("div");
       el.className="track";
-      el.innerHTML = t.title + `<div class="progress"><div class="progress-bar" id="p-${name}-${i}"></div></div>`;
-      el.onclick=()=>playTrack(name,i);
+      el.innerHTML = `
+  ${t.title}
+  <button onclick="event.stopPropagation(); buyTrack('${t.title}')">💸 Support</button>
+  <div class="progress">
+    <div class="progress-bar" id="p-${name}-${i}"></div>
+  </div>
+`;
+  el.onclick=()=>playTrack(name,i);
       div.appendChild(el);
     });
 
     container.appendChild(div);
   });
 }
+
+  function buyTrack(title){
+  const url = getXLMUrl(2, "Purchase: " + title);
+  window.location.href = url;
+  }
 
 // ▶️ Play
 function playTrack(station,i){
@@ -274,6 +296,11 @@ function draw(){
 
   ctx.stroke();
 }
+
+function donate(){
+  const url = getXLMUrl(1, "Donation RunAI Radio");
+  window.location.href = url;
+  }
 
 // Init
 renderStations();
