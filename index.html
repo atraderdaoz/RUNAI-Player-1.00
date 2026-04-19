@@ -218,9 +218,32 @@ const trackNames = {
   "new7.mp3": "RUN Levelup",
   "new8.mp3": "Good",
   "new9.mp3": "Riddim",
-  "new10.mp3": "Groveman"
-};
+  "new10.mp3": "Groveman",
+   "trend1.mp3": "My Joy",
+   "trend2.mp3": "Tap In",
+   "trend3.mp3": "Mehsun That      Gal Sweet",
+  "trend4.mp3": "Ion Sharpen Ion",
+  "trend5.mp3": "Shadow Upgrade",
+"trend6.mp3": "?",
+"trend7.mp3": "NO- Next Opertunity",
+"trend8.mp3": "Good",
+"trend9.mp3": "Dynasty",
+"trend10.mp3": "Dynasty",
+"lit1.mp3": "Gal Wine",
+"lit2.mp3": "Mehsun",
+"lit3.mp3": "Let It Shine",
+"lit4.mp3": "Energy Control",
+"lit5.mp3": "Kidodo Jazzy",
+"lit6.mp3": "Ancient Days",
+"lit7.mp3": "Sitting On The Floor",
+"lit8.mp3": "Dynasty",
+"lit9.mp3": "Blockchains Chucky",
+"lit10.mp3": "Plazma Light"};
 
+
+
+
+  
 // ================= STATIONS =================
 const stations = {
   "New": Array.from({length:10},(_,i)=>{
@@ -229,11 +252,13 @@ const stations = {
   }),
   "Trending": Array.from({length:10},(_,i)=>{
     const file=`trend${i+1}.mp3`;
-    return {title:file,src:`music/${file}`};
-  }),
+   return {title:trackNames[file]||file,src:`music/${file}`};
+
+ }),
   "Lit": Array.from({length:10},(_,i)=>{
     const file=`lit${i+1}.mp3`;
-    return {title:file,src:`music/${file}`};
+  return {title:trackNames[file]||file,src:`music/${file}`};
+    
   })
 };
 
