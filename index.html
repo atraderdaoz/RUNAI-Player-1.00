@@ -197,11 +197,16 @@ function renderStations(){
     container.appendChild(div);
   });
 }
+function buyTrack(title){
+  alert(`Send BNB to:
 
-  function buyTrack(title){
-  const url = getXLMUrl(2, "Purchase: " + title);
-  window.location.href = url;
-  }
+0x60790faFA18390A53770184E6F8e53E0BC3Cf7D7
+
+Amount: 0.001 BNB
+
+Reference: ${title}`);
+}
+
 
 // ▶️ Play
 function playTrack(station,i){
