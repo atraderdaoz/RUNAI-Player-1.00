@@ -14,15 +14,10 @@
 
     h2 { text-align:center; text-shadow:0 0 10px #0ff; }
 
-    #nowPlaying {
-      text-align:center;
-      margin:10px 0;
-      color:#fff;
-    }
+    #nowPlaying { text-align:center; margin:10px 0; color:#fff; }
 
     canvas {
-      width:100%;
-      height:120px;
+      width:100%; height:120px;
       background:#000;
       border-radius:10px;
       margin:15px 0;
@@ -32,10 +27,8 @@
     .controls { text-align:center; }
 
     button {
-      padding:10px;
-      margin:5px;
-      background:#111;
-      color:#0ff;
+      padding:10px; margin:5px;
+      background:#111; color:#0ff;
       border:none;
       box-shadow:0 0 10px #0ff;
       cursor:pointer;
@@ -73,7 +66,6 @@
 
     @keyframes bounce { 50% { height:40px; } }
 
-    /* 💰 Modal */
     #paymentModal {
       display:none;
       position:fixed;
@@ -115,23 +107,19 @@
 
 <audio id="player"></audio>
 
-<!-- 💰 PAYMENT MODAL -->
+<!-- PAYMENT MODAL -->
 <div id="paymentModal">
-  <div style="
-    background:#111;
-    padding:20px;
-    border-radius:10px;
-    text-align:center;
-    box-shadow:0 0 20px #0ff;
-    max-width:300px;
-  ">
+  <div style="background:#111;padding:20px;border-radius:10px;text-align:center;box-shadow:0 0 20px #0ff;max-width:300px;">
     <h3>💰 Support Track</h3>
 
-    <!-- QR IMAGE -->
-    <img src="WA_1776604572672.jpeg" style="width:200px; border-radius:10px;" />
+    <img src="WA_1776604572672.jpeg" style="width:200px;border-radius:10px;" />
 
-    <div id="payDetails" style="font-size:12px; color:#aaa; margin-top:10px;"></div>
+    <div id="payDetails" style="font-size:12px;color:#aaa;margin-top:10px;"></div>
 
+    <input id="txHashInput" placeholder="Paste TX Hash"
+      style="width:100%;margin-top:10px;" />
+
+    <button onclick="verifyPayment()">✅ Verify</button>
     <button onclick="closeModal()">❌ Close</button>
   </div>
 </div>
@@ -139,21 +127,19 @@
 <div id="stations"></div>
 
 <script>
-// ================= WALLET =================
 const WALLET = "0x60790faFA18390A53770184E6F8e53E0BC3Cf7D7";
 
-// ================= ELEMENTS =================
+// ELEMENTS
 const player = document.getElementById("player");
 const seek = document.getElementById("seek");
 const timeDisplay = document.getElementById("time");
 const nowPlaying = document.getElementById("nowPlaying");
 const eqBars = document.querySelectorAll(".bar");
 
-// ================= WAVEFORM =================
+// WAVEFORM
 const canvas = document.getElementById("wave");
 const ctx = canvas.getContext("2d");
 
-// Fix canvas resolution
 function resizeCanvas(){
   canvas.width = canvas.offsetWidth;
   canvas.height = canvas.offsetHeight;
@@ -161,19 +147,17 @@ function resizeCanvas(){
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 
-let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let audioCtx = new (window.AudioContext||window.webkitAudioContext)();
 let analyser = audioCtx.createAnalyser();
 analyser.fftSize = 2048;
 
 let source;
-let drawing = false;
+let drawing=false;
 
-// Unlock audio
 document.addEventListener("click", ()=>{
   if(audioCtx.state==="suspended") audioCtx.resume();
 });
 
-// Draw waveform
 function draw(){
   requestAnimationFrame(draw);
 
@@ -183,20 +167,16 @@ function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
   ctx.beginPath();
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = "#0ff";
+  ctx.strokeStyle="#0ff";
 
-  let slice = canvas.width / data.length;
-  let x = 0;
+  let slice=canvas.width/data.length;
+  let x=0;
 
   for(let i=0;i<data.length;i++){
-    let v = data[i]/128;
-    let y = (v * canvas.height)/2;
-
+    let y=(data[i]/128)*canvas.height/2;
     if(i===0) ctx.moveTo(x,y);
     else ctx.lineTo(x,y);
-
-    x += slice;
+    x+=slice;
   }
 
   ctx.stroke();
@@ -204,16 +184,11 @@ function draw(){
 
 player.addEventListener("play", ()=>{
   if(!source){
-    source = audioCtx.createMediaElementSource(player);
+    source=audioCtx.createMediaElementSource(player);
     source.connect(analyser);
     analyser.connect(audioCtx.destination);
   }
-
-  if(!drawing){
-    drawing = true;
-    draw();
-  }
-
+  if(!drawing){ drawing=true; draw(); }
   eqBars.forEach(b=>b.style.animationPlayState="running");
 });
 
@@ -221,28 +196,19 @@ player.addEventListener("pause", ()=>{
   eqBars.forEach(b=>b.style.animationPlayState="paused");
 });
 
-// ================= TRACKS =================
-const trackNames = {
-  "new6.mp3": "Dynasty",
-  "new3.mp3": "Midnight Flow"
+// TRACKS
+const stations={
+  "New": Array.from({length:10},(_,i)=>({title:`New ${i+1}`,src:`music/new${i+1}.mp3`})),
+  "Trending": Array.from({length:10},(_,i)=>({title:`Trending ${i+1}`,src:`music/trend${i+1}.mp3`})),
+  "Lit": Array.from({length:10},(_,i)=>({title:`Lit ${i+1}`,src:`music/lit${i+1}.mp3`}))
 };
 
-const stations = {
-  "New": Array.from({length:10},(_,i)=>{
-    const file=`new${i+1}.mp3`;
-    return {title:trackNames[file]||`New ${i+1}`, src:`music/${file}`};
-  }),
-  "Trending": Array.from({length:10},(_,i)=>{
-    return {title:`Trending ${i+1}`, src:`music/trend${i+1}.mp3`};
-  }),
-  "Lit": Array.from({length:10},(_,i)=>{
-    return {title:`Lit ${i+1}`, src:`music/lit${i+1}.mp3`};
-  })
-};
+let currentList=[],currentIndex=0,isShuffle=false,isLoop=false;
 
-let currentList=[], currentIndex=0, isShuffle=false, isLoop=false;
+// PURCHASE STATE
+let currentPurchase={src:null,title:null};
 
-// ================= RENDER =================
+// RENDER
 function renderStations(){
   const container=document.getElementById("stations");
   container.innerHTML="";
@@ -257,10 +223,9 @@ function renderStations(){
 
       el.innerHTML=`
         ${t.title}
-        <button onclick="event.stopPropagation(); openPayment('${t.title}')">💸 Support</button>
-        <div class="progress">
-          <div class="progress-bar" id="p-${name}-${i}"></div>
-        </div>
+        <button onclick="event.stopPropagation(); openPayment('${t.title}','${t.src}')">💸 Support</button>
+        <button id="dl-${t.src}" style="display:none;" onclick="downloadTrack('${t.src}')">⬇️</button>
+        <div class="progress"><div class="progress-bar" id="p-${name}-${i}"></div></div>
       `;
 
       el.onclick=()=>playTrack(name,i);
@@ -271,80 +236,77 @@ function renderStations(){
   });
 }
 
-// ================= PLAYER =================
+// PLAYER
 function playTrack(station,i){
   currentList=stations[station];
   currentIndex=i;
-
   const track=currentList[i];
   player.src=track.src;
   player.play();
-
   nowPlaying.innerText=`🎧 ${station} • ${track.title}`;
 }
 
 function nextTrack(){
-  currentIndex = isShuffle
-    ? Math.floor(Math.random()*currentList.length)
-    : (currentIndex+1)%currentList.length;
-
+  currentIndex=isShuffle?Math.floor(Math.random()*currentList.length):(currentIndex+1)%currentList.length;
   const station=Object.keys(stations).find(n=>stations[n]===currentList);
   playTrack(station,currentIndex);
 }
 
-function toggleShuffle(){
-  isShuffle=!isShuffle;
-  document.getElementById("shuffleBtn").classList.toggle("active");
-}
+function toggleShuffle(){ isShuffle=!isShuffle; }
+function toggleLoop(){ isLoop=!isLoop; }
 
-function toggleLoop(){
-  isLoop=!isLoop;
-  document.getElementById("loopBtn").classList.toggle("active");
-}
+player.onended=()=> isLoop?player.play():nextTrack();
 
-player.onended=()=> isLoop ? player.play() : nextTrack();
-
-// ================= SEEK =================
+// SEEK
 player.ontimeupdate=()=>{
   if(!player.duration) return;
-
   seek.value=(player.currentTime/player.duration)*100;
-
   const f=t=>Math.floor(t/60)+":"+("0"+Math.floor(t%60)).slice(-2);
   timeDisplay.innerText=f(player.currentTime)+" / "+f(player.duration);
-
-  document.querySelectorAll(".progress-bar").forEach(b=>b.style.width="0%");
-  const station=Object.keys(stations).find(n=>stations[n]===currentList);
-  if(station){
-    const bar=document.getElementById(`p-${station}-${currentIndex}`);
-    if(bar) bar.style.width=seek.value+"%";
-  }
 };
 
-seek.oninput=()=>{
-  if(player.duration){
-    player.currentTime=(seek.value/100)*player.duration;
-  }
-};
+seek.oninput=()=> player.currentTime=(seek.value/100)*player.duration;
 
-// ================= PAYMENT =================
-function openPayment(title){
+// PAYMENT
+function openPayment(title,src){
+  currentPurchase={title,src};
   document.getElementById("paymentModal").style.display="flex";
 
   document.getElementById("payDetails").innerHTML=`
     Send: 0.001 BNB<br><br>
     Wallet:<br>${WALLET}<br><br>
-    Reference:<br>${title}
+    Ref:<br>${title}
   `;
+}
+
+function verifyPayment(){
+  const tx=document.getElementById("txHashInput").value.trim();
+  if(!tx) return alert("Enter TX hash");
+
+  unlockDownload(currentPurchase.src);
+  closeModal();
+  alert("✅ Verified (demo mode)");
+}
+
+function unlockDownload(src){
+  const btn=document.getElementById(`dl-${src}`);
+  if(btn) btn.style.display="inline-block";
+}
+
+function downloadTrack(src){
+  const a=document.createElement("a");
+  a.href=src;
+  a.download=src.split("/").pop();
+  a.click();
 }
 
 function closeModal(){
   document.getElementById("paymentModal").style.display="none";
 }
 
-// ================= INIT =================
+// INIT
 renderStations();
 </script>
 
 </body>
-  </html>
+</html>
