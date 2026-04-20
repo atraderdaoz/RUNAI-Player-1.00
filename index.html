@@ -1,29 +1,84 @@
-<!DOCTYPE html>
+please add correctly the implementations to the following code, <!DOCTYPE html>
 <html>
 <head>
   <title>🏃🏿‍♂️Run.ai 📻Radio</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
-    body { background:#000; color:#0ff; font-family:Arial; padding:20px; }
-    h2 { text-align:center; }
+    body {
+      background: radial-gradient(circle at top, #0f0f0f, #000);
+      color: #0ff;
+      font-family: Arial;
+      padding: 20px;
+    }
+
+    h2 { text-align:center; text-shadow:0 0 10px #0ff; }
 
     #nowPlaying { text-align:center; margin:10px 0; color:#fff; }
 
-    canvas { width:100%; height:120px; background:#000; margin:15px 0; }
+    canvas {
+      width:100%;
+      height:120px;
+      background:#000;
+      border-radius:10px;
+      margin:15px 0;
+      box-shadow:0 0 10px #0ff;
+    }
 
     .controls { text-align:center; }
 
     button {
-      padding:8px; margin:4px;
-      background:#111; color:#0ff; border:none; cursor:pointer;
+      padding:10px;
+      margin:5px;
+      background:#111;
+      color:#0ff;
+      border:none;
+      box-shadow:0 0 10px #0ff;
+      cursor:pointer;
     }
 
-    .track { padding:10px; margin:8px 0; background:#111; cursor:pointer; }
+    button.active { background:#0ff; color:#000; }
 
-    #stats { margin-top:10px; text-align:center; color:#fff; }
+    input[type=range] { width:100%; }
 
-    #comments { margin-top:10px; }
+    .track {
+      padding:10px;
+      margin:8px 0;
+      background:#111;
+      border-radius:8px;
+      cursor:pointer;
+    }
+
+    .progress { height:5px; background:#222; margin-top:5px; }
+    .progress-bar { height:100%; width:0%; background:#0ff; }
+
+    .equalizer {
+      display:flex;
+      justify-content:center;
+      height:40px;
+      gap:4px;
+    }
+
+    .bar {
+      width:5px;
+      height:10px;
+      background:#0ff;
+      animation:bounce 1s infinite;
+      animation-play-state:paused;
+    }
+
+    @keyframes bounce { 50% { height:40px; } }
+
+    #paymentModal {
+      display:none;
+      position:fixed;
+      top:0; left:0;
+      width:100%; height:100%;
+      background:rgba(0,0,0,0.9);
+      justify-content:center;
+      align-items:center;
+      z-index:999;
+    }
   </style>
 </head>
 
@@ -31,158 +86,80 @@
 
 <h2>🏃🏿‍♂️Run.ai 📻Radio</h2>
 
-<div id="nowPlaying">🎧 None</div>
+<div id="nowPlaying">🎧 Now Playing: None</div>
+
 <canvas id="wave"></canvas>
+
+<div class="equalizer">
+  <div class="bar"></div><div class="bar"></div>
+  <div class="bar"></div><div class="bar"></div>
+  <div class="bar"></div>
+</div>
 
 <div class="controls">
   <button onclick="player.play()">▶</button>
   <button onclick="player.pause()">⏸</button>
   <button onclick="nextTrack()">⏭</button>
+
+  <input type="range" id="seek">
+  <div id="time">0:00 / 0:00</div>
+
+  <button id="shuffleBtn" onclick="toggleShuffle()">🔀</button>
+  <button id="loopBtn" onclick="toggleLoop()">🔁</button>
 </div>
 
 <audio id="player"></audio>
 
-<!-- 📊 STATS -->
-<div id="stats"></div>
+<!-- PAYMENT MODAL -->
+<div id="paymentModal">
+  <div style="background:#111;padding:20px;border-radius:10px;text-align:center;box-shadow:0 0 20px #0ff;max-width:300px;">
+    <h3>💰 Support Track</h3>
 
-<!-- ❤️ + 💬 -->
-<div style="text-align:center;">
-  <button onclick="likeTrack()">❤️ Like</button>
+    <img src="WA_1776604572672.jpeg" style="width:200px;border-radius:10px;" />
+
+    <div id="payDetails" style="font-size:12px;color:#aaa;margin-top:10px;"></div>
+
+    <input id="txHashInput" placeholder="Paste TX Hash" style="width:100%;margin-top:10px;" />
+
+    <button onclick="verifyPayment()">✅ Verify</button>
+    <button onclick="closeModal()">❌ Close</button>
+  </div>
 </div>
-
-<div style="text-align:center; margin-top:10px;">
-  <input id="commentInput" placeholder="Comment..." style="width:60%">
-  <button onclick="addComment()">💬 Post</button>
-</div>
-
-<div id="comments"></div>
 
 <div id="stations"></div>
 
 <script>
-// ================= CONFIG =================
-const API = "http://localhost:3000"; // backend
-const CPM = 2;
+// ================= WALLET =================
+const WALLET = "0x60790faFA18390A53770184E6F8e53E0BC3Cf7D7";
 
 // ================= ELEMENTS =================
 const player = document.getElementById("player");
+const seek = document.getElementById("seek");
+const timeDisplay = document.getElementById("time");
 const nowPlaying = document.getElementById("nowPlaying");
-
-// ================= TRACKS =================
-const stations = {
-  "New": Array.from({length:5},(_,i)=>({
-    title:`Track ${i+1}`,
-    src:`music/new${i+1}.mp3`
-  }))
-};
-
-let currentList=[], currentIndex=0;
-
-// ================= RENDER =================
-function renderStations(){
-  const container=document.getElementById("stations");
-  container.innerHTML="";
-
-  Object.keys(stations).forEach(name=>{
-    const div=document.createElement("div");
-    div.innerHTML=`<h3>${name}</h3>`;
-
-    stations[name].forEach((t,i)=>{
-      const el=document.createElement("div");
-      el.className="track";
-      el.innerText=t.title;
-
-      el.onclick=()=>playTrack(name,i);
-      div.appendChild(el);
-    });
-
-    container.appendChild(div);
-  });
-}
-
-// ================= PLAY =================
-async function playTrack(station,i){
-  currentList=stations[station];
-  currentIndex=i;
-
-  const track=currentList[i];
-
-  player.src=track.src;
-  player.play();
-
-  nowPlaying.innerText=`🎧 ${track.title}`;
-
-  // 🔥 send play to backend
-  const res = await fetch(API+"/play",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({track:track.src})
-  });
-
-  const data = await res.json();
-  updateStats(track.src, data);
-}
-
-// ================= NEXT =================
-function nextTrack(){
-  currentIndex=(currentIndex+1)%currentList.length;
-  playTrack("New", currentIndex);
-}
-
-// ================= STATS =================
-function updateStats(track,data){
-  const earnings = (data.plays/1000)*CPM;
-
-  document.getElementById("stats").innerHTML = `
-    ▶️ ${data.plays} Plays |
-    ❤️ ${data.likes} Likes |
-    💰 $${earnings.toFixed(4)}
-  `;
-
-  renderComments(data.comments);
-}
-
-// ================= LIKE =================
-async function likeTrack(){
-  const track=currentList[currentIndex].src;
-
-  const res = await fetch(API+"/like",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({track})
-  });
-
-  const data = await res.json();
-  updateStats(track,data);
-}
-
-// ================= COMMENTS =================
-async function addComment(){
-  const text=document.getElementById("commentInput").value;
-  const track=currentList[currentIndex].src;
-
-  const res = await fetch(API+"/comment",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({track,text})
-  });
-
-  const data = await res.json();
-  renderComments(data.comments);
-}
-
-function renderComments(comments){
-  document.getElementById("comments").innerHTML =
-    comments.map(c=>`<div>💬 ${c}</div>`).join("");
-}
+const eqBars = document.querySelectorAll(".bar");
 
 // ================= WAVEFORM =================
 const canvas = document.getElementById("wave");
 const ctx = canvas.getContext("2d");
 
+function resizeCanvas(){
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+}
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
+
 let audioCtx = new (window.AudioContext||window.webkitAudioContext)();
 let analyser = audioCtx.createAnalyser();
+analyser.fftSize = 2048;
+
 let source;
+let drawing=false;
+
+document.addEventListener("click", ()=>{
+  if(audioCtx.state==="suspended") audioCtx.resume();
+});
 
 function draw(){
   requestAnimationFrame(draw);
@@ -193,27 +170,217 @@ function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
   ctx.beginPath();
-  let slice = canvas.width/data.length;
+  ctx.strokeStyle="#0ff";
+
+  let slice=canvas.width/data.length;
   let x=0;
 
   for(let i=0;i<data.length;i++){
-    let y=(data[i]/255)*canvas.height;
-    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    let v=data[i]/128.0;
+    let y=(v*canvas.height)/2;
+
+    if(i===0) ctx.moveTo(x,y);
+    else ctx.lineTo(x,y);
+
     x+=slice;
   }
 
-  ctx.strokeStyle="#0ff";
   ctx.stroke();
 }
 
-player.onplay=()=>{
+player.addEventListener("play", ()=>{
   if(!source){
     source=audioCtx.createMediaElementSource(player);
     source.connect(analyser);
     analyser.connect(audioCtx.destination);
   }
-  draw();
+
+  if(!drawing){
+    drawing=true;
+    draw();
+  }
+
+  eqBars.forEach(b=>b.style.animationPlayState="running");
+});
+
+player.addEventListener("pause", ()=>{
+  eqBars.forEach(b=>b.style.animationPlayState="paused");
+});
+
+// ================= TRACK NAMES =================
+const trackNames = {
+  "new1.mp3": "King Kanshi",
+  "new2.mp3": "Mehsun",
+  "new3.mp3": "Law1",
+  "new4.mp3": "Sovereign AI",
+  "new5.mp3": "Ants Call",
+  "new6.mp3": "Dynasty",
+  "new7.mp3": "RUN Levelup",
+  "new8.mp3": "Good",
+  "new9.mp3": "Riddim",
+  "new10.mp3": "Groveman",
+   "trend1.mp3": "My Joy",
+   "trend2.mp3": "Tap In",
+   "trend3.mp3": "Mehsun That      Gal Sweet",
+  "trend4.mp3": "Ion Sharpen Ion",
+  "trend5.mp3": "Shadow Upgrade",
+"trend6.mp3": "?",
+"trend7.mp3": "NO- Next Opertunity",
+"trend8.mp3": "Good",
+"trend9.mp3": "Dynasty",
+"trend10.mp3": "Dynasty",
+"lit1.mp3": "Gal Wine",
+"lit2.mp3": "Mehsun",
+"lit3.mp3": "Let It Shine",
+"lit4.mp3": "Energy Control",
+"lit5.mp3": "Kidodo Jazzy",
+"lit6.mp3": "Ancient Days",
+"lit7.mp3": "Sitting On The Floor",
+"lit8.mp3": "Dynasty",
+"lit9.mp3": "Blockchains Chucky",
+"lit10.mp3": "Plazma Light"};
+
+
+
+
+  
+// ================= STATIONS =================
+const stations = {
+  "New": Array.from({length:10},(_,i)=>{
+    const file=`new${i+1}.mp3`;
+    return {title:trackNames[file]||file,src:`music/${file}`};
+  }),
+  "Trending": Array.from({length:10},(_,i)=>{
+    const file=`trend${i+1}.mp3`;
+   return {title:trackNames[file]||file,src:`music/${file}`};
+
+ }),
+  "Lit": Array.from({length:10},(_,i)=>{
+    const file=`lit${i+1}.mp3`;
+  return {title:trackNames[file]||file,src:`music/${file}`};
+    
+  })
 };
+
+let currentList=[],currentIndex=0,isShuffle=false,isLoop=false;
+let currentPurchase={};
+
+// ================= RENDER =================
+function renderStations(){
+  const container=document.getElementById("stations");
+  container.innerHTML="";
+
+  Object.keys(stations).forEach(name=>{
+    const div=document.createElement("div");
+    div.innerHTML=`<h3>📻 ${name}</h3>`;
+
+    stations[name].forEach((t,i)=>{
+      const safeId=t.src.replace(/[/.]/g,"_");
+
+      const el=document.createElement("div");
+      el.className="track";
+
+      el.innerHTML=`
+        ${t.title}
+        <button onclick="event.stopPropagation(); openPayment('${t.title}','${t.src}')">💸</button>
+        <button id="dl-${safeId}" style="display:none;" onclick="downloadTrack('${t.src}')">⬇️</button>
+        <div class="progress"><div class="progress-bar" id="p-${name}-${i}"></div></div>
+      `;
+
+      el.onclick=()=>playTrack(name,i);
+      div.appendChild(el);
+    });
+
+    container.appendChild(div);
+  });
+}
+
+// ================= PLAYER =================
+function playTrack(station,i){
+  currentList=stations[station];
+  currentIndex=i;
+  const track=currentList[i];
+
+  player.src=track.src;
+  player.play();
+
+  nowPlaying.innerText=`🎧 ${station} • ${track.title}`;
+}
+
+function nextTrack(){
+  currentIndex=isShuffle
+    ? Math.floor(Math.random()*currentList.length)
+    : (currentIndex+1)%currentList.length;
+
+  const station=Object.keys(stations).find(n=>stations[n]===currentList);
+  playTrack(station,currentIndex);
+}
+
+function toggleShuffle(){
+  isShuffle=!isShuffle;
+  document.getElementById("shuffleBtn").classList.toggle("active");
+}
+
+function toggleLoop(){
+  isLoop=!isLoop;
+  document.getElementById("loopBtn").classList.toggle("active");
+}
+
+player.onended=()=> isLoop?player.play():nextTrack();
+
+// ================= SEEK =================
+player.ontimeupdate=()=>{
+  if(!player.duration) return;
+
+  seek.value=(player.currentTime/player.duration)*100;
+
+  const f=t=>Math.floor(t/60)+":"+("0"+Math.floor(t%60)).slice(-2);
+  timeDisplay.innerText=f(player.currentTime)+" / "+f(player.duration);
+};
+
+seek.oninput=()=>{
+  if(player.duration){
+    player.currentTime=(seek.value/100)*player.duration;
+  }
+};
+
+// ================= PAYMENT =================
+function openPayment(title,src){
+  currentPurchase={title,src};
+
+  document.getElementById("paymentModal").style.display="flex";
+  document.getElementById("payDetails").innerHTML=`
+    Send: 0.001 BNB<br><br>
+    Wallet:<br>${WALLET}<br><br>
+    Ref:<br>${title}
+  `;
+}
+
+function verifyPayment(){
+  const tx=document.getElementById("txHashInput").value.trim();
+  if(!tx) return alert("Enter TX hash");
+
+  unlockDownload(currentPurchase.src);
+  closeModal();
+  alert("✅ Payment Verified (Demo)");
+}
+
+function unlockDownload(src){
+  const id="dl-"+src.replace(/[/.]/g,"_");
+  const btn=document.getElementById(id);
+  if(btn) btn.style.display="inline-block";
+}
+
+function downloadTrack(src){
+  const a=document.createElement("a");
+  a.href=src;
+  a.download=src.split("/").pop();
+  a.click();
+}
+
+function closeModal(){
+  document.getElementById("paymentModal").style.display="none";
+}
 
 // INIT
 renderStations();
