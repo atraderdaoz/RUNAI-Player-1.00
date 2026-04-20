@@ -127,8 +127,21 @@ please add correctly the implementations to the following code, <!DOCTYPE html>
 </div>
 
 <div id="stations"></div>
+<div id="stats" style="text-align:center; margin-top:10px;"></div>
 
-<script>
+<div style="text-align:center; margin-top:10px;">
+  <button onclick="likeTrack()">❤️ Like</button>
+</div>
+
+<div style="text-align:center; margin-top:10px;">
+  <input id="commentInput" placeholder="Write comment..." style="width:60%">
+  <button onclick="addComment()">💬 Post</button>
+</div>
+
+<div id="comments" style="margin-top:10px;"></div>
+<script> 
+ const API = "http://localhost:3000";
+const CPM = 2; 
 // ================= WALLET =================
 const WALLET = "0x60790faFA18390A53770184E6F8e53E0BC3Cf7D7";
 
@@ -296,7 +309,7 @@ function renderStations(){
 }
 
 // ================= PLAYER =================
-function playTrack(station,i){
+async function playTrack(station,i){
   currentList=stations[station];
   currentIndex=i;
   const track=currentList[i];
@@ -305,6 +318,20 @@ function playTrack(station,i){
   player.play();
 
   nowPlaying.innerText=`🎧 ${station} • ${track.title}`;
+
+  // 🔥 SEND PLAY TO BACKEND
+  try{
+    const res = await fetch(API+"/play",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({track:track.src})
+    });
+
+    const data = await res.json();
+    updateStats(track.src,data);
+  }catch(e){
+    console.log("Backend not running");
+  }
 }
 
 function nextTrack(){
@@ -381,7 +408,59 @@ function downloadTrack(src){
 function closeModal(){
   document.getElementById("paymentModal").style.display="none";
 }
+// ================= STATS =================
+function updateStats(track,data){
+  const earnings = (data.plays/1000) * CPM;
 
+  document.getElementById("stats").innerHTML = `
+    ▶️ ${data.plays} Plays |
+    ❤️ ${data.likes} Likes |
+    💰 $${earnings.toFixed(4)}
+  `;
+
+  renderComments(data.comments || []);
+}
+
+// ================= LIKE =================
+async function likeTrack(){
+  if(!currentList.length) return;
+
+  const track=currentList[currentIndex].src;
+
+  const res = await fetch(API+"/like",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({track})
+  });
+
+  const data = await res.json();
+  updateStats(track,data);
+}
+
+// ================= COMMENT =================
+async function addComment(){
+  const text=document.getElementById("commentInput").value;
+  if(!text) return;
+
+  const track=currentList[currentIndex].src;
+
+  const res = await fetch(API+"/comment",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({track,text})
+  });
+
+  const data = await res.json();
+
+  document.getElementById("commentInput").value="";
+  renderComments(data.comments);
+}
+
+// ================= RENDER COMMENTS =================
+function renderComments(comments){
+  document.getElementById("comments").innerHTML =
+    comments.map(c=>`<div>💬 ${c}</div>`).join("");
+}
 // INIT
 renderStations();
 </script>
