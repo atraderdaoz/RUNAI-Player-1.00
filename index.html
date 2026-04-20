@@ -41,13 +41,32 @@ please add correctly the implementations to the following code, <!DOCTYPE html>
 
     input[type=range] { width:100%; }
 
-    .track {
-      padding:10px;
-      margin:8px 0;
-      background:#111;
-      border-radius:8px;
-      cursor:pointer;
-    }
+    .station-row {
+  display: flex;
+  overflow-x: auto;
+  gap: 10px;
+  padding-bottom: 10px;
+}
+
+.track {
+  min-width: 180px;
+  flex: 0 0 auto;
+  padding: 10px;
+  background: #111;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  box-shadow: 0 0 8px #0ff;
+}
+
+.station-row::-webkit-scrollbar {
+  height: 6px;
+}
+
+.station-row::-webkit-scrollbar-thumb {
+  background: #0ff;
+  border-radius: 10px;
+}
 
     .progress { height:5px; background:#222; margin-top:5px; }
     .progress-bar { height:100%; width:0%; background:#0ff; }
@@ -284,8 +303,13 @@ function renderStations(){
   container.innerHTML="";
 
   Object.keys(stations).forEach(name=>{
-    const div=document.createElement("div");
-    div.innerHTML=`<h3>📻 ${name}</h3>`;
+    const section=document.createElement("div");
+
+    section.innerHTML=`<h3>📻 ${name}</h3>`;
+
+    // 🔥 horizontal row container
+    const row=document.createElement("div");
+    row.className="station-row";
 
     stations[name].forEach((t,i)=>{
       const safeId=t.src.replace(/[/.]/g,"_");
@@ -294,20 +318,19 @@ function renderStations(){
       el.className="track";
 
       el.innerHTML=`
-        ${t.title}
+        <div>${t.title}</div>
         <button onclick="event.stopPropagation(); openPayment('${t.title}','${t.src}')">💸</button>
         <button id="dl-${safeId}" style="display:none;" onclick="downloadTrack('${t.src}')">⬇️</button>
-        <div class="progress"><div class="progress-bar" id="p-${name}-${i}"></div></div>
       `;
 
       el.onclick=()=>playTrack(name,i);
-      div.appendChild(el);
+      row.appendChild(el);
     });
 
-    container.appendChild(div);
+    section.appendChild(row);
+    container.appendChild(section);
   });
 }
-
 // ================= PLAYER =================
 async function playTrack(station,i){
   currentList=stations[station];
