@@ -151,6 +151,27 @@
   </div>
 </div>
 
+<div style="text-align:center; margin:20px 0;">
+  <div style="background:#111;padding:20px;border-radius:12px;box-shadow:0 0 20px #0ff;max-width:320px;margin:auto;">
+    
+    <h3>🏃🏿‍♂️Run.ai 🤖 Subscriber</h3>
+
+    <img src="WA_1776604572672.jpeg" style="width:100%;border-radius:10px;margin:10px 0;" />
+
+    <h2 style="color:#0ff;">80.00 XLM / Month</h2>
+
+    <p style="font-size:13px;color:#aaa;">
+      🎧 1 Free Track Download Daily<br>
+      💰 Support Artists & Earn Rewards
+    </p>
+
+    <button onclick="subscribeUser()">💳 Subscribe</button>
+
+    <div id="subStatus" style="margin-top:10px;font-size:12px;color:#0f0;"></div>
+
+  </div>
+</div>
+ 
 <div id="stations"></div>
 <div id="stats" style="text-align:center; margin-top:10px;"></div>
 
@@ -488,6 +509,42 @@ function renderComments(comments){
 }
 // INIT
 renderStations();
+
+ let isSubscribed = false;
+let lastDownloadDay = null;
+
+function subscribeUser(){
+  alert("Send 80 XLM to wallet to activate (demo)");
+  
+  // simulate success
+  isSubscribed = true;
+  document.getElementById("subStatus").innerText = "✅ Subscription Active";
+}
+
+// limit: 1 free download per day
+function canDownloadToday(){
+  const today = new Date().toDateString();
+
+  if(!isSubscribed) return false;
+
+  if(lastDownloadDay === today){
+    alert("❌ Daily limit reached");
+    return false;
+  }
+
+  lastDownloadDay = today;
+  return true;
+}
+
+// MODIFY your downloadTrack function
+function downloadTrack(src){
+  if(!canDownloadToday()) return;
+
+  const a=document.createElement("a");
+  a.href=src;
+  a.download=src.split("/").pop();
+  a.click();
+}
 </script>
 
 </body>
